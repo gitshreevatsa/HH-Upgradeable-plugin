@@ -1,14 +1,11 @@
 import {
-    PublicClient,
-    HttpTransport,
-    SmartAccountV1,
-    waitTillCompleted,
+  HttpTransport,
+  PublicClient,
+  type SmartAccountV1,
+  waitTillCompleted,
 } from "@nilfoundation/niljs";
 import { ethers } from "ethers";
-import { encodeFunctionData, decodeFunctionResult } from "viem";
-
-// Load Proxy Contract ABI + Bytecode (Assumed Unchanged)
-const ProxyContract = require("../artifacts/contracts/MyERC1967Proxy.sol/MyERC1967Proxy.json");
+import { decodeFunctionResult, encodeFunctionData } from "viem";
 
 /**
  * Deploys a UUPS proxy along with the first implementation contract and verifies deployment.
@@ -18,83 +15,94 @@ const ProxyContract = require("../artifacts/contracts/MyERC1967Proxy.sol/MyERC19
  * @returns Deployed proxy and implementation addresses.
  */
 export async function deployUUPSProxy(
-    deployer: SmartAccountV1,
-    implementationContract: { abi: any; bytecode: `0x${string}` },
-    initializeArgs: any[]
+  deployer: SmartAccountV1,
+  implementationContract: { abi: any; bytecode: `0x${string}` },
+  initializeArgs: any[],
 ) {
-    const client = deployer.client;
+  // Load Proxy Contract ABI + Bytecode (Assumed Unchanged)
+  const ProxyContract = require("../artifacts/contracts/MyERC1967Proxy.sol/MyERC1967Proxy.json");
 
-    console.log("🔹 Deploying UUPS Proxy...");
-    console.log("🟢 Deployer Address:", deployer.address);
+  const client = deployer.client;
 
-    // Step 1️⃣: Deploy Implementation Contract (V1)
-    const { address: implAddress, hash: implTxHash } = await deployer.deployContract({
-        shardId: 1,
-        bytecode: implementationContract.bytecode,
-        abi: implementationContract.abi,
-        salt: BigInt(Math.floor(Math.random() * 10000)),
-        args: [],
-        feeCredit: ethers.parseEther("0.001"),
+  console.log("🔹 Deploying UUPS Proxy...");
+  console.log("🟢 Deployer Address:", deployer.address);
+
+  // Step 1️⃣: Deploy Implementation Contract (V1)
+  const { address: implAddress, hash: implTxHash } =
+    await deployer.deployContract({
+      shardId: 1,
+      bytecode: implementationContract.bytecode,
+      abi: implementationContract.abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+      args: [],
+      feeCredit: ethers.parseEther("0.001"),
     });
-    await waitTillCompleted(client, implTxHash);
-    console.log("✅ Implementation deployed at:", implAddress);
+  await waitTillCompleted(client, implTxHash);
+  console.log("✅ Implementation deployed at:", implAddress);
 
-    // Step 2️⃣: Encode Initialization Call
-    const initializeData = encodeFunctionData({
-        abi: implementationContract.abi,
-        functionName: "initialize",
-        args: initializeArgs,
+  // Step 2️⃣: Encode Initialization Call
+  const initializeData = encodeFunctionData({
+    abi: implementationContract.abi,
+    functionName: "initialize",
+    args: initializeArgs,
+  });
+
+  // Step 3️⃣: Deploy Proxy Contract
+  const { address: proxyAddress, hash: proxyTxHash } =
+    await deployer.deployContract({
+      shardId: 1,
+      bytecode: ProxyContract.bytecode,
+      abi: ProxyContract.abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+      args: [implAddress, initializeData],
     });
+  await waitTillCompleted(client, proxyTxHash);
+  console.log("✅ Proxy deployed at:", proxyAddress);
 
-    // Step 3️⃣: Deploy Proxy Contract
-    const { address: proxyAddress, hash: proxyTxHash } = await deployer.deployContract({
-        shardId: 1,
-        bytecode: ProxyContract.bytecode,
+  // Step 4️⃣: Verify Proxy is Connected to Implementation
+  console.log("🔎 Verifying Deployment...");
+
+  try {
+    // Check Implementation Address
+    const implementationAddress = await client.call(
+      {
+        to: proxyAddress,
         abi: ProxyContract.abi,
-        salt: BigInt(Math.floor(Math.random() * 10000)),
-        args: [implAddress, initializeData],
+        functionName: "getImplementation",
+      },
+      "latest",
+    );
+
+    const implAddrDecoded = decodeFunctionResult({
+      abi: ProxyContract.abi,
+      functionName: "getImplementation",
+      data: implementationAddress.data,
     });
-    await waitTillCompleted(client, proxyTxHash);
-    console.log("✅ Proxy deployed at:", proxyAddress);
 
-    // Step 4️⃣: Verify Proxy is Connected to Implementation
-    console.log("🔎 Verifying Deployment...");
+    console.log("✅ Proxy is pointing to Implementation:", implAddrDecoded);
 
-    try {
-        // Check Implementation Address
-        const implementationAddress = await client.call({
-            to: proxyAddress,
-            abi: ProxyContract.abi,
-            functionName: "getImplementation",
-        }, "latest");
+    // Check getValue()
+    const getValue = await client.call(
+      {
+        to: proxyAddress,
+        abi: implementationContract.abi,
+        functionName: "getValue",
+      },
+      "latest",
+    );
 
-        const implAddrDecoded = decodeFunctionResult({
-            abi: ProxyContract.abi,
-            functionName: "getImplementation",
-            data: implementationAddress.data,
-        });
+    const value = decodeFunctionResult({
+      abi: implementationContract.abi,
+      functionName: "getValue",
+      data: getValue.data,
+    });
 
-        console.log("✅ Proxy is pointing to Implementation:", implAddrDecoded);
+    console.log("✅ getValue() returned:", value);
+  } catch (error) {
+    console.error("❌ Error verifying deployment:", error);
+  }
 
-        // Check getValue()
-        const getValue = await client.call({
-            to: proxyAddress,
-            abi: implementationContract.abi,
-            functionName: "getValue",
-        }, "latest");
-
-        const value = decodeFunctionResult({
-            abi: implementationContract.abi,
-            functionName: "getValue",
-            data: getValue.data,
-        });
-
-        console.log("✅ getValue() returned:", value);
-    } catch (error) {
-        console.error("❌ Error verifying deployment:", error);
-    }
-
-    return { proxyAddress, implAddress };
+  return { proxyAddress, implAddress };
 }
 
 /**
@@ -105,94 +113,104 @@ export async function deployUUPSProxy(
  * @param reinitializeArgs - Optional arguments for the reinitialize function.
  */
 export async function upgradeUUPSProxy(
-    deployer: SmartAccountV1,
-    proxyAddress: `0x${string}`,
-    newImplementationContract: { abi: any; bytecode: `0x${string}` },
-    reinitializeArgs?: any[] // Now Optional
+  deployer: SmartAccountV1,
+  proxyAddress: `0x${string}`,
+  newImplementationContract: { abi: any; bytecode: `0x${string}` },
+  reinitializeArgs?: any[], // Now Optional
 ) {
-    const client = deployer.client;
+  // Load Proxy Contract ABI + Bytecode (Assumed Unchanged)
+  const ProxyContract = require("../artifacts/contracts/MyERC1967Proxy.sol/MyERC1967Proxy.json");
 
-    console.log("🔹 Upgrading UUPS Proxy...");
-    console.log("🟢 Deployer Address:", deployer.address);
-    console.log("🔵 Proxy Address:", proxyAddress);
+  const client = deployer.client;
 
-    // Step 1️⃣: Deploy New Implementation Contract (V2)
-    const { address: newImplAddress, hash: newImplTxHash } = await deployer.deployContract({
-        shardId: 1,
-        bytecode: newImplementationContract.bytecode,
+  console.log("🔹 Upgrading UUPS Proxy...");
+  console.log("🟢 Deployer Address:", deployer.address);
+  console.log("🔵 Proxy Address:", proxyAddress);
+
+  // Step 1️⃣: Deploy New Implementation Contract (V2)
+  const { address: newImplAddress, hash: newImplTxHash } =
+    await deployer.deployContract({
+      shardId: 1,
+      bytecode: newImplementationContract.bytecode,
+      abi: newImplementationContract.abi,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+      args: [],
+      feeCredit: ethers.parseEther("0.001"),
+    });
+  await waitTillCompleted(client, newImplTxHash);
+  console.log("✅ New Implementation deployed at:", newImplAddress);
+
+  // Step 2️⃣: Upgrade Proxy to New Implementation
+  const upgradeTxHash = await deployer.sendTransaction({
+    to: proxyAddress,
+    data: encodeFunctionData({
+      abi: newImplementationContract.abi,
+      functionName: "upgradeToAndCall",
+      args: [newImplAddress, "0x"],
+    }),
+  });
+  await waitTillCompleted(client, upgradeTxHash);
+  console.log("✅ Proxy upgraded to new implementation at:", newImplAddress);
+
+  // Step 3️⃣: Conditionally Call reinitializeV2()
+  if (reinitializeArgs && reinitializeArgs.length > 0) {
+    console.log("🔄 Calling reinitializeV2() with:", reinitializeArgs);
+    const reinitTxHash = await deployer.sendTransaction({
+      to: proxyAddress,
+      data: encodeFunctionData({
         abi: newImplementationContract.abi,
-        salt: BigInt(Math.floor(Math.random() * 10000)),
-        args: [],
-        feeCredit: ethers.parseEther("0.001"),
+        functionName: "reinitializeV2",
+        args: reinitializeArgs,
+      }),
     });
-    await waitTillCompleted(client, newImplTxHash);
-    console.log("✅ New Implementation deployed at:", newImplAddress);
+    await waitTillCompleted(client, reinitTxHash);
+    console.log("✅ Reinitialize completed!");
+  } else {
+    console.log("⚠️ Skipping reinitialize step as no arguments were provided.");
+  }
 
-    // Step 2️⃣: Upgrade Proxy to New Implementation
-    const upgradeTxHash = await deployer.sendTransaction({
+  // Step 4️⃣: Verify Upgrade Worked
+  console.log("🔎 Verifying Upgrade...");
+
+  try {
+    // Check Implementation Address
+    const updatedImplementation = await client.call(
+      {
         to: proxyAddress,
-        data: encodeFunctionData({
-            abi: newImplementationContract.abi,
-            functionName: "upgradeToAndCall",
-            args: [newImplAddress, "0x"],
-        }),
+        abi: ProxyContract.abi,
+        functionName: "getImplementation",
+      },
+      "latest",
+    );
+
+    const updatedImplAddrDecoded = decodeFunctionResult({
+      abi: ProxyContract.abi,
+      functionName: "getImplementation",
+      data: updatedImplementation.data,
     });
-    await waitTillCompleted(client, upgradeTxHash);
-    console.log("✅ Proxy upgraded to new implementation at:", newImplAddress);
 
-    // Step 3️⃣: Conditionally Call reinitializeV2()
-    if (reinitializeArgs && reinitializeArgs.length > 0) {
-        console.log("🔄 Calling reinitializeV2() with:", reinitializeArgs);
-        const reinitTxHash = await deployer.sendTransaction({
-            to: proxyAddress,
-            data: encodeFunctionData({
-                abi: newImplementationContract.abi,
-                functionName: "reinitializeV2",
-                args: reinitializeArgs,
-            }),
-        });
-        await waitTillCompleted(client, reinitTxHash);
-        console.log("✅ Reinitialize completed!");
-    } else {
-        console.log("⚠️ Skipping reinitialize step as no arguments were provided.");
-    }
+    console.log("✅ Updated Implementation Address:", updatedImplAddrDecoded);
 
-    // Step 4️⃣: Verify Upgrade Worked
-    console.log("🔎 Verifying Upgrade...");
+    // Check getValue()
+    const getValue = await client.call(
+      {
+        to: proxyAddress,
+        abi: newImplementationContract.abi,
+        functionName: "getValue",
+      },
+      "latest",
+    );
 
-    try {
-        // Check Implementation Address
-        const updatedImplementation = await client.call({
-            to: proxyAddress,
-            abi: ProxyContract.abi,
-            functionName: "getImplementation",
-        }, "latest");
+    const value = decodeFunctionResult({
+      abi: newImplementationContract.abi,
+      functionName: "getValue",
+      data: getValue.data,
+    });
 
-        const updatedImplAddrDecoded = decodeFunctionResult({
-            abi: ProxyContract.abi,
-            functionName: "getImplementation",
-            data: updatedImplementation.data,
-        });
+    console.log("✅ getValue() after upgrade:", value);
+  } catch (error) {
+    console.error("❌ Error verifying upgrade:", error);
+  }
 
-        console.log("✅ Updated Implementation Address:", updatedImplAddrDecoded);
-
-        // Check getValue()
-        const getValue = await client.call({
-            to: proxyAddress,
-            abi: newImplementationContract.abi,
-            functionName: "getValue",
-        }, "latest");
-
-        const value = decodeFunctionResult({
-            abi: newImplementationContract.abi,
-            functionName: "getValue",
-            data: getValue.data,
-        });
-
-        console.log("✅ getValue() after upgrade:", value);
-    } catch (error) {
-        console.error("❌ Error verifying upgrade:", error);
-    }
-
-    return newImplAddress;
+  return newImplAddress;
 }

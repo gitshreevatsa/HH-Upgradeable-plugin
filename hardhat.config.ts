@@ -8,26 +8,8 @@ import "./task/test-modular";
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.28",
-    settings: {
-      metadata: {
-          appendCBOR: false,
-          bytecodeHash: "none",
-      },
-      debug: {
-          debugInfo: ["location"],
-      },
-      outputSelection: {
-          "*": {
-              "*": ["*"],
-          },
-      },
-      evmVersion: "cancun",
-      optimizer: {
-          enabled: false,
-          runs: 200,
-      },
   },
-  },
+  defaultNetwork: "nil",
   networks: {
     nil: {
       url: process.env.NIL_RPC_ENDPOINT,
