@@ -1,196 +1,191 @@
-# **UUPS Upgradeable Smart Contracts on =nil;**
-This repository demonstrates **UUPS proxy-based upgradeable contracts** on the **=nil; blockchain** using **Hardhat** and **niljs**.
+# **UUPS Upgradeable Contracts with Hardhat and nil.js** 🚀  
 
-## 📌 **Overview**
-This project includes:
-- **UUPS (Universal Upgradeable Proxy Standard) Proxy Pattern**
-- **Upgradeable Smart Contracts with Persistent State**
-- **Deployment of Proxy & Implementation Contracts**
-- **Automated Upgrade Process via Hardhat Task**
-- **Verification Checks to Confirm the Upgrade Worked**
+## **📌 Overview**  
+This repository demonstrates **how to work with UUPS (Universal Upgradeable Proxy Standard) upgradeable contracts using Hardhat**.  
+
+It includes:  
+- **Deploying & Upgrading UUPS Proxies**
+- **Working with Upgradeable Smart Contracts**
+- **Two different approaches:**  
+  1️⃣ **Single-task deployment & upgrade**  
+  2️⃣ **Separate deployment & upgrade tasks**  
 
 ---
 
-## 📦 **Installation & Setup**
-### 🔧 **Prerequisites**
-Ensure you have the following installed:
-- **Node.js v18+** (⚠️ **Do not use Node.js 20+ due to compatibility issues with Hardhat**)
-- **Yarn or npm**
-- **Hardhat**
-- **=nil; blockchain RPC endpoint**
+## **📦 Installation & Setup**  
 
-### 🛠 **Install Dependencies**
-Clone the repository and install required dependencies:
+### **🔧 Prerequisites**  
+Ensure you have the following installed:  
+- **Node.js v18+** (⚠️ **Avoid Node.js 20+ due to Hardhat compatibility issues**).  
+- **Yarn or npm**  
+- **Hardhat**  
+- **=nil; blockchain RPC endpoint**  
+
+### **🛠 Install Dependencies**  
+Clone the repository and install the required dependencies:  
 ```sh
 git clone https://github.com/gitshreevatsa/HH-Upgradeable-plugin.git
-cd HH-Upgradeable-plugin
+cd HH-upgradeable-plugin
 npm install
 ```
 
-### 🔑 **Set Up Environment Variables**
-Create a **`.env`** file in the project root and add:
+### **🔑 Set Up Environment Variables**  
+Create a **`.env`** file in the project root and add the following:  
 ```env
 NIL_RPC_ENDPOINT=<your_nil_rpc_endpoint>
-NIL=0x0001111111111111111111111111111111111110
+NIL=<faucet_address>
 ```
 
----
-
-## 🏗 **Compile the Contracts**
-Before running the deployment and upgrade process, **compile the contracts** using Hardhat:
-```sh
-npx hardhat compile
+#### **📌 For Upgrading the Contracts (Using Separate Tasks)**
+If you want to upgrade contracts using the **2-task function process**, store your **private key & smart account address** in `.env` along with the above variables:  
+```env
+PRIVATE_KEY=<your_wallet_private_key>
+SMART_ACCOUNT_ADDRESS=<your_smart_account_address>
 ```
+This allows the system to **use the same smart account for both deploying & upgrading**.
 
 ---
 
-## ⚡ **Running the Deployment & Upgrade Flow**
-Once the contracts are compiled, execute the **full deployment and upgrade process** with:
-```sh
-npx hardhat test-uups-pattern
-```
+## **🛠 Actions Performed in This Repository**  
 
-### ✅ **What This Task Does**
-1. **Deploys the initial implementation contract** (`UUPSUpgradeableExample.sol`)
-2. **Deploys the proxy contract** (`MyERC1967Proxy.sol`)
-3. **Initializes the contract with a value (`42`)**
-4. **Fetches stored values using `getValue()`**
-5. **Deploys the new implementation contract** (`UUPSUpgradeableExampleV2.sol`)
-6. **Upgrades the proxy to point to V2**
-7. **Reinitializes the contract (if required)**
-8. **Verifies the upgrade by checking state persistence**
-9. **Tests the new logic (`deposit()`)**
+### **1️⃣ Deploy Proxy & Implementation (V1)**
+✔ Deploys the **initial implementation contract**.  
+✔ Deploys a **proxy contract** pointing to the implementation.  
+✔ Initializes the contract (e.g., storing a number).  
+
+✅ **Verification**  
+- **Fetch the proxy's implementation address** using `getImplementation()`.  
+- **Check the stored value** using `getValue()`.  
 
 ---
 
-## 🔍 **How Do You Know the Upgrade Worked?**
-After upgrading to **V2**, the contract should:
-1. **Return the same stored value** when calling `getValue()`, confirming state persistence
-2. **Allow interactions with the new logic**, e.g., calling `deposit()` and updating the balance
-3. **Show a different implementation address** when fetching it via `getImplementation()`, verifying the upgrade
+### **2️⃣ Upgrade Proxy to New Implementation (V2)**
+✔ Deploys a **new implementation contract (V2)**.  
+✔ Upgrades the proxy to **use V2 instead of V1**.  
+✔ Optionally calls `reinitializeV2()` if required.  
 
-**✅ If these checks pass, the upgrade was successful!**
+✅ **Verification**  
+- **Ensure the proxy now points to the new implementation** using `getImplementation()`.  
+- **Check if `getValue()` still returns the correct value (state persistence)**.  
+- **Test new functions in V2** (e.g., `deposit()`).  
 
 ---
 
-## 📂 **Project Structure**
+## **📂 Repository Structure**  
 ```
 /contracts
-│── UUPSUpgradeableExample.sol     # V1 Implementation contract
-│── UUPSUpgradeableExampleV2.sol   # V2 Implementation contract
-│── MyERC1967Proxy.sol             # UUPS Proxy contract
+│── UUPSUpgradeableExample.sol     # V1 Implementation contract  
+│── UUPSUpgradeableExampleV2.sol   # V2 Implementation contract  
+│── MyERC1967Proxy.sol             # UUPS Proxy contract  
 /tasks
-│── test-uups-pattern.ts           # Hardhat task to deploy & upgrade contracts
-/artifacts
-│── ...                            # Compiled contract ABIs & bytecode
+│── test-uups-pattern.ts           # Deploy & upgrade in one task  
+│── test-modular.ts                # Separate deploy & upgrade tasks  
+/utils
+│── deployAndUpgrade.ts            # Functions to handle proxy deployment and upgrade logic  
 ```
-
-### 📝 **Contract Descriptions**
-- **UUPSUpgradeableExample.sol** – Initial smart contract (V1)  
-- **MyERC1967Proxy.sol** – Proxy contract for upgradeability  
-- **UUPSUpgradeableExampleV2.sol** – New contract (V2) with additional features  
 
 ---
 
-## ⚡ **Example Workflow**
-### ✅ **Run the Deployment & Upgrade Flow**
+## **⚡ Running Deployment & Upgrade Commands**  
+
+### **🔹 Deploying & Upgrading in One Task**  
+This method **deploys & upgrades in a single Hardhat task**.  
 ```sh
 npx hardhat test-uups-pattern
 ```
+✅ **Best for:** Quick testing of upgradeability.  
 
-### ✅ **Expected Console Output**
+---
+
+### **🔹 Deploy Proxy & Implementation (Separate Tasks)**  
+This method **splits deployment & upgrading into two tasks**.  
+
+#### **Step 1️⃣: Deploy Proxy & Implementation**  
 ```sh
-Deployer Address: 0x0001fbf1f94e635f9993b74d77ed4c5de8b3b954
-Tx Hash for deployment of UUPS Example Implementation contract: 0x000126c5398c3ff3ad419efd23f21866226a41ee49d81233477b54fb886f5dba
-Deployed Implementation Address: 0x0001d14a99bc5e907930f943cff3098898a97cc1
-Registration complete!
-Encoded initialize function call: 0xfe4b84df000000000000000000000000000000000000000000000000000000000000002a
-Tx Hash for deployment of UUPS Proxy contract: 0x000139e403e11c4a699b8bddd8b776bbe091755e1d30eb534ed36ad2948dbb84
-Deployed Proxy Address: 0x00019a4a3ad41b1cd41b8692280ec8794f73d1ba
-Checking if getImplementation exists in ABI...
-Fetching the implementation address from proxy...
-Implementation Address from Proxy: 0x0001d14a99Bc5e907930F943CfF3098898A97CC1
-Making a call to get the value after initialization...
-Call made for getting Value via getValue function
-Value after initialization: 42n
-Topping Up before upgrade...
-Topped up 0.01 ETH
-Deploying New Implementation Contract...
-Tx Hash for deployment of UUPS Example V2 Implementation contract: 0x00018a1fbb85932bf09b77206b960d7242fc1ab476dd3599e846a6856dcbec9a
-Deployed Implementation Address: 0x0001a90bd7629c886ad95d50d4bd4894ddb775b4
-Upgrade transaction completed: 0x0001b4ac828fab5ae40a8451134523483ffa95d43dae910f25ec51b22806f00b
-Proxy upgraded to V2: 0x0001a90bd7629c886ad95d50d4bd4894ddb775b4
-New version reinitialized!
-Updated Implementation Address: 0x0001A90BD7629c886ad95D50D4bd4894DDB775b4
-Making a call to get the value after reinitialization...
-Call made for getting Value via getValue function
-Value after reinitialization: 42n
-Deposit transaction completed: 0x00011475b4daa4b91243e346c5945116b2e92c839772072ecd13b4204eb8d01c
-Deposited 0.0001 ETH
-User Balance after deposit: 100000000000000n
+npx hardhat deploy-uups-proxy
 ```
-The above values are experimental, so contract addresses and receipts **will differ** for each user
+✔ Deploys **implementation & proxy**.  
+✔ Stores the **proxy address** in `proxyAddress.txt`.  
 
-✔ **This confirms the upgrade worked while preserving state.** 🎉
+#### **Step 2️⃣: Upgrade to New Implementation**  
+```sh
+npx hardhat upgrade-uups-proxy --proxy <PROXY_ADDRESS>
+```
+✔ Deploys **new implementation contract**.  
+✔ Upgrades the **proxy to use the new implementation**.  
+
+#### **Check Smart Account**  
+To verify the **smart account used**, run:  
+```sh
+npx hardhat smart-account
+```
 
 ---
 
-## 🚀 **How to Use This Repository**
-### ✅ **1. Modify or Implement Your Own UUPS Contracts**
-- Navigate to `/contracts` and update the implementation contract (`UUPSUpgradeableExample.sol`) **or** create your own UUPS-compatible smart contract
-- Ensure your contract:
-  - **Inherits `UUPSUpgradeable.sol`** from OpenZeppelin
-  - **Overrides `_authorizeUpgrade()`** for upgrade permission
-  - **Includes an `initialize()` function** for proper setup
+## **🛠 Customizing This Repository for Your Contracts**  
 
-Examples for custom **UUPS implementation contracts** can be found in the `./contracts` directory
+### **1️⃣ Replace the Implementation Contracts**
+By default, this repository includes example contracts:  
+- `UUPSUpgradeableExample.sol` (V1)  
+- `UUPSUpgradeableExampleV2.sol` (V2)  
 
-### ✅ **2. Update the Hardhat Task File**
-Modify **`test-uups-pattern.ts`** inside `/tasks`:
-- Change file paths for your **V1 and V2 implementation contracts**
-- Do **not** modify the proxy contract import
+If you are working on your own upgradeable contract, **replace these files with your own implementation**.  
+👉 Make sure your contracts **inherit** from `UUPSUpgradeable.sol`.  
 
-Example:
+### **2️⃣ Update Imports in Task Files**
+Modify **`tasks/test-uups-pattern.ts`** or **`tasks/test-modular.ts`** to import your custom contracts instead of the default ones:
 ```typescript
-const UUPSExample = require("../artifacts/contracts/MyUpgradeableContract.sol/MyUpgradeableContract.json");
-const UUPSV2Example = require("../artifacts/contracts/MyUpgradeableContractV2.sol/MyUpgradeableContractV2.json");
+const UUPSExample = require("../artifacts/contracts/UUPSUpgradeableExample.sol/UUPSUpgradeableExample.json");
+const UUPSV2Example = require("../artifacts/contracts/UUPSUpgradeableExampleV2.sol/UUPSUpgradeableExampleV2.json");
 ```
 
+### **3️⃣ Set Initialization & Reinitialization Variables**
+Your contract may require different parameters during **initialization or reinitialization**.  
+👉 Update the initialization variables inside the deployment script:  
+```typescript
+const initializeArgs = ["myCustomParam1", 1234]; // Update with your contract's parameters
+```
+👉 Update the reinitialization arguments inside the upgrade script:  
+```typescript
+const reinitializeArgs = ["updatedParam", 5678]; // Modify as per your new implementation
+```
+If your V2 implementation **does not require reinitialization**, leave this as an empty array:  
+```typescript
+const reinitializeArgs = [];
+```
 
-### ✅ **3. Update the Funtion Calls and initialisation variables**
-Modify **`test-uups-pattern.ts`** inside `/tasks`:
-- Change the function calls inside `encodeFuntionData` and `decodeFuntionResult` functions
-- Modify the initialisation parameters based on your requirement
-
+### **4️⃣ Run the Hardhat Tasks**
+Once the changes are made, follow the same **deployment & upgrade steps** outlined above.
 
 ---
 
-## 🛠 **Troubleshooting**
-### ❌ **"Out of Gas" Error**
-- Increase `feeCredit` in the script
-- Verify **gas settings** in Hardhat
+## **🔎 How Do You Know the Upgrade Worked?**  
+After upgrading to **V2**, check:  
+1️⃣ **State Persistence** – `getValue()` should return the **same stored value** as V1.  
+2️⃣ **New Logic** – You should be able to call new functions (e.g., `deposit()`).  
+3️⃣ **Implementation Address Change** – `getImplementation()` should show a **new address**.  
 
-### ❌ **"Node.js version not supported"**
-Use **Node.js v18**:
+✅ If all checks pass, **the upgrade was successful!** 🎉  
+
+---
+
+## **🛠 Troubleshooting**  
+
+### **⚠️ "Out of Gas" Errors?**  
+Try **increasing `feeCredit`** inside `deployAndUpgrade.ts`.  
+
+### **⚠️ Node.js Version Issues?**  
+If you see `"Node.js version not supported"`, downgrade to **Node.js v18**:  
 ```sh
 nvm install 18
 nvm use 18
 ```
-
-### ❌ **Upgrade Fails**
-- Check `_authorizeUpgrade()` is **properly implemented**
-- Ensure **V1 and V2 have consistent storage layouts**
-
 ---
 
-## 🔗 **Resources**
+## **📚 Resources**  
 - 📖 [EIP-1967: Proxy Storage Slots](https://eips.ethereum.org/EIPS/eip-1967)  
 - 📖 [OpenZeppelin UUPS Proxies](https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable)  
 - 📖 [Upgradeable Smart Contracts Guide](https://docs.openzeppelin.com/upgrades-plugins/1.x/)  
-
-Here's the updated **Maintenance** section with the note that the project is under maintenance and more updates will be rolled out:
-
----
 
 ## 🔧 **Maintenance Status**
 🚧 **This project is currently under maintenance.** 🚧  

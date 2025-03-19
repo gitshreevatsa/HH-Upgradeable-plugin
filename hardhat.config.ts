@@ -3,6 +3,7 @@ import "@nomicfoundation/hardhat-toolbox-viem";
 import "dotenv/config";
 
 import "./task/test-uups-pattern";
+import "./task/test-modular";
 
 const config: HardhatUserConfig = {
   solidity: {
