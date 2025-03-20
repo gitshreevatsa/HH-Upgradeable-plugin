@@ -29,11 +29,19 @@ cd HH-upgradeable-plugin
 npm install
 ```
 
+### **🔹 Compile Smart Contracts**
+Before running deployment, you must compile the contracts:
+
+```sh
+npx hardhat compile
+```
+This step ensures all contracts are compiled and their ABI & Bytecode are generated.
+
 ### **🔑 Set Up Environment Variables**  
 Create a **`.env`** file in the project root and add the following:  
 ```env
 NIL_RPC_ENDPOINT=<your_nil_rpc_endpoint>
-NIL=<faucet_address>
+NIL=0x0001111111111111111111111111111111111110
 ```
 
 #### **📌 For Upgrading the Contracts (Using Separate Tasks)**

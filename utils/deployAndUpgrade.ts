@@ -1,6 +1,4 @@
 import {
-  HttpTransport,
-  PublicClient,
   type SmartAccountV1,
   waitTillCompleted,
 } from "@nilfoundation/niljs";
@@ -61,46 +59,43 @@ export async function deployUUPSProxy(
 
   // Step 4️⃣: Verify Proxy is Connected to Implementation
   console.log("🔎 Verifying Deployment...");
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  try {
-    // Check Implementation Address
-    const implementationAddress = await client.call(
-      {
-        to: proxyAddress,
-        abi: ProxyContract.abi,
-        functionName: "getImplementation",
-      },
-      "latest",
-    );
-
-    const implAddrDecoded = decodeFunctionResult({
+  // Check Implementation Address
+  const implementationAddress = await client.call(
+    {
+      to: proxyAddress,
       abi: ProxyContract.abi,
       functionName: "getImplementation",
-      data: implementationAddress.data,
-    });
+    },
+    "latest",
+  );
 
-    console.log("✅ Proxy is pointing to Implementation:", implAddrDecoded);
+  const implAddrDecoded = await decodeFunctionResult({
+    abi: ProxyContract.abi,
+    functionName: "getImplementation",
+    data: implementationAddress.data,
+  });
 
-    // Check getValue()
-    const getValue = await client.call(
-      {
-        to: proxyAddress,
-        abi: implementationContract.abi,
-        functionName: "getValue",
-      },
-      "latest",
-    );
+  console.log("✅ Proxy is pointing to Implementation:", implAddrDecoded);
 
-    const value = decodeFunctionResult({
+  // Check getValue()
+  const getValue = await client.call(
+    {
+      to: proxyAddress,
       abi: implementationContract.abi,
       functionName: "getValue",
-      data: getValue.data,
-    });
+    },
+    "latest",
+  );
 
-    console.log("✅ getValue() returned:", value);
-  } catch (error) {
-    console.error("❌ Error verifying deployment:", error);
-  }
+  const value = await decodeFunctionResult({
+    abi: implementationContract.abi,
+    functionName: "getValue",
+    data: getValue.data,
+  });
+
+  console.log("✅ getValue() returned:", value);
 
   return { proxyAddress, implAddress };
 }
@@ -171,6 +166,7 @@ export async function upgradeUUPSProxy(
 
   // Step 4️⃣: Verify Upgrade Worked
   console.log("🔎 Verifying Upgrade...");
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
   try {
     // Check Implementation Address
@@ -183,13 +179,21 @@ export async function upgradeUUPSProxy(
       "latest",
     );
 
-    const updatedImplAddrDecoded = decodeFunctionResult({
+    const updatedImplAddrDecoded : string = decodeFunctionResult({
       abi: ProxyContract.abi,
       functionName: "getImplementation",
       data: updatedImplementation.data,
-    });
+    }) as string;
 
     console.log("✅ Updated Implementation Address:", updatedImplAddrDecoded);
+
+       // Check if the implementation address matches the newly deployed one
+       if (updatedImplAddrDecoded.toLowerCase() !== newImplAddress.toLowerCase()) {
+        console.error(
+          "❌ Upgrade failed! Proxy did not update to the new implementation."
+        );
+        return;
+      }
 
     // Check getValue()
     const getValue = await client.call(

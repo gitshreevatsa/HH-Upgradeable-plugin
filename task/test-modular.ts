@@ -56,29 +56,32 @@ async function getSmartAccount(): Promise<SmartAccountV1> {
     smartAccount = new SmartAccountV1({
       signer,
       client,
-      address: smartAccountAddress,
+      salt: BigInt(Math.floor(Math.random() * 10000)),
+      shardId: 1,
       pubkey: signer.getPublicKey(),
     });
 
-    await smartAccount.selfDeploy(true);
-    console.log("🆕 New Smart Account Generated:", smartAccount.address);
+    const accountDetails = {
+      PRIVATE_KEY: privateKey,
+      SMART_ACCOUNT_ADDRESS: smartAccount.address,
+    }
 
-    // ✅ Store details in .env
-    const envFile = fs.readFileSync(".env", "utf8");
-    const newEnv = envFile
-      .replace(/(PRIVATE_KEY=).*/, `$1${privateKey}`)
-      .replace(/(SMART_ACCOUNT_ADDRESS=).*/, `$1${smartAccount.address}`);
-
-    fs.writeFileSync(".env", newEnv);
-    console.log("✅ Smart Account details saved to `.env`");
+    fs.writeFileSync("smartAccount.json", JSON.stringify(accountDetails));
   }
 
   // ✅ Fund the Smart Account
-  await faucetClient.topUp({
+  const topUpFaucet = await faucetClient.topUp({
     smartAccountAddress: smartAccount.address,
     amount: ethers.parseEther("0.01"), // Ensure enough ETH for operations
     faucetAddress: process.env.NIL as `0x${string}`,
   });
+
+  await waitTillCompleted(client, topUpFaucet);
+
+  if ((await smartAccount.checkDeploymentStatus()) === false) {
+    await smartAccount.selfDeploy(true);
+    console.log("🆕 New Smart Account Generated:", smartAccount.address);
+  }
 
   console.log("✅ Smart Account Funded (0.01 ETH)");
   return smartAccount;
